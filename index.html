@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body data-root="" data-page="dashboard" data-title="Dashboard">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <section class="grid grid-aside stretch mb-3">
+          <div class="hero-card">
+            <h2 id="greeting">Welcome back</h2>
+            <p id="heroLine">Loading your summary…</p>
+            <div class="btn-row">
+              <a class="btn" href="pages/qr-checkin.html"><i data-icon="qr"></i> Check in with QR</a>
+              <a class="btn secondary" href="pages/workout-planner.html"><i data-icon="dumbbell"></i> Plan a workout</a>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Today</h3><span class="muted small" id="todayDate"></span></div>
+            <div class="grid grid-2">
+              <div><div class="chart-box sm"><canvas id="calRing" aria-label="Calories eaten today versus goal"></canvas></div></div>
+              <div><div class="chart-box sm"><canvas id="waterRing" aria-label="Water intake today versus goal"></canvas></div></div>
+            </div>
+            <a class="btn secondary block mt-1" href="pages/nutrition.html">Log a meal</a>
+          </div>
+        </section>
+
+        <section class="grid grid-4 mb-3" id="statCards" aria-label="Key statistics"></section>
+
+        <section class="grid grid-2 mb-3">
+          <div class="card">
+            <div class="card-head"><h3>Training minutes per week</h3><a class="small" href="pages/progress-predictor.html">Full progress</a></div>
+            <div class="chart-box"><canvas id="weeklyChart" aria-label="Bar chart of training minutes for the last 8 weeks"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Weight trend</h3><a class="small" href="pages/progress-predictor.html">Predict progress</a></div>
+            <div class="chart-box"><canvas id="weightChart" aria-label="Line chart of weight over time"></canvas></div>
+          </div>
+        </section>
+
+        <section class="grid grid-3 mb-3">
+          <div class="card">
+            <div class="card-head"><h3>Equipment right now</h3><span class="live-dot" id="liveDot">Demo data</span></div>
+            <div id="equipSummary"></div>
+            <a class="btn secondary block mt-2" href="pages/equipment.html">See all equipment</a>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Recent workouts</h3></div>
+            <ul class="list-plain" id="recentWorkouts"></ul>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Upcoming trainer sessions</h3></div>
+            <div id="upcomingSessions"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h3>Everything in FORMA</h3></div>
+          <div class="quick-links" id="quickLinks"></div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

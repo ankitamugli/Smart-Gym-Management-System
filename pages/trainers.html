@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trainers · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="trainers" data-title="Trainers">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>Personal trainer matching</h1>
+            <p>Find a coach by goal, specialty and schedule, then send a session request.</p>
+          </div>
+          <button class="btn secondary" type="button" id="matchBtn"><i data-icon="sparkle"></i> Match me to a trainer</button>
+        </div>
+
+        <div class="notice">
+          <i data-icon="info"></i>
+          <div><b>Demo bookings.</b> Trainers and photos are sample data (illustrated avatars, not real people). Requests are saved only in this browser. A real system needs a backend to confirm availability, notify the trainer and prevent double bookings through <code>POST /trainer-bookings</code>. “Match me” ranks trainers with a simple scoring rule, not a recommendation model.</div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="grid grid-4" style="align-items:end">
+            <div class="field mb-0" style="grid-column:span 2"><label for="tSearch">Search</label><div class="input-icon"><i data-icon="search"></i><input class="form-control" id="tSearch" type="search" placeholder="Name, specialty or language" autocomplete="off"></div></div>
+            <div class="field mb-0"><label for="tSpec">Specialty</label><select class="form-control" id="tSpec"></select></div>
+            <div class="field mb-0"><label for="tDay">Available on</label><select class="form-control" id="tDay"><option value="">Any day</option><option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option><option>Sat</option><option>Sun</option></select></div>
+          </div>
+          <div class="grid grid-4 mt-2" style="align-items:end">
+            <div class="field mb-0"><label for="tPrice">Max price per session</label><select class="form-control" id="tPrice"><option value="">Any price</option><option value="700">Up to ₹700</option><option value="900">Up to ₹900</option><option value="1100">Up to ₹1,100</option></select></div>
+            <div class="field mb-0"><label for="tGender">Trainer gender</label><select class="form-control" id="tGender"><option value="">No preference</option><option>Female</option><option>Male</option></select></div>
+            <div class="field mb-0"><label for="tSort">Sort by</label><select class="form-control" id="tSort"><option value="rating">Highest rated</option><option value="experience">Most experience</option><option value="priceAsc">Price: low to high</option><option value="priceDesc">Price: high to low</option></select></div>
+            <div class="flex between items-center" style="padding-bottom:.4rem"><span class="small muted" id="tCount"></span><button class="btn sm ghost" type="button" id="tReset">Reset filters</button></div>
+          </div>
+        </div>
+
+        <section class="grid grid-4 mb-3" id="trainerGrid" aria-live="polite"></section>
+
+        <div class="card">
+          <div class="card-head"><h3>My session requests</h3><span class="muted small" id="bkCount"></span></div>
+          <div id="bookingList"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/trainers.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+/* ==========================================================================
+   FORMA – responsive.css
+   Breakpoints: ≤1180 (small laptop) · ≤960 (tablet, sidebar becomes drawer)
+                ≤640 (phone)
+   ========================================================================== */
+
+@media (max-width: 1180px) {
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-aside { grid-template-columns: minmax(0, 1fr); }
+  .grid-aside-l { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 960px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: min(290px, 84vw);
+    transform: translateX(-102%); transition: transform .25s ease; box-shadow: var(--shadow-lg);
+  }
+  body.nav-open .sidebar { transform: none; }
+  body.nav-open .scrim { display: block; position: fixed; inset: 0; background: rgba(8, 14, 26, .55); z-index: 35; }
+  .menu-btn { display: inline-grid; }
+  .topbar { padding: 0 1rem; }
+  .content { padding: 1.1rem; }
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .auth { grid-template-columns: minmax(0, 1fr); }
+  .auth-hero { display: none; }
+  .chat-shell { height: calc(100vh - var(--topbar-h) - 9rem); }
+}
+
+@media (max-width: 640px) {
+  body { font-size: 14.5px; }
+  h1 { font-size: 1.8rem; }
+  .grid-2, .grid-3, .grid-4, .form-row, .form-row.three { grid-template-columns: minmax(0, 1fr); }
+  .user-chip .who { display: none; }
+  .topbar-title { font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52vw; }
+  .topbar > .badge { display: none; }
+  .quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .goal-cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .page-head { align-items: flex-start; }
+  .page-head .btn-row { width: 100%; }
+  .card { padding: 1rem; }
+  .hero-card h2 { font-size: 1.7rem; }
+  .ex-table th:nth-child(4), .ex-table td:nth-child(4) { display: none; }
+  .modal { border-radius: 14px; }
+  .modal-foot .btn { flex: 1; }
+  .msg { max-width: 94%; }
+  .chart-box { height: 220px; }
+  .toasts { left: 1rem; right: 1rem; max-width: none; }
+}

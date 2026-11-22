@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nutrition tracker · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="nutrition" data-title="Nutrition tracker">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>Smart diet and nutrition tracker</h1>
+            <p>Log meals, watch calories and macros against your goals, and track water. Records are saved in this browser.</p>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary" type="button" id="prevDay" aria-label="Previous day"></button>
+            <input class="form-control" type="date" id="dayPicker" aria-label="Choose date" style="width:auto">
+            <button class="btn secondary" type="button" id="nextDay" aria-label="Next day"><i data-icon="chevron"></i></button>
+            <button class="btn secondary" type="button" id="goalsBtn"><i data-icon="target"></i> Daily goals</button>
+            <button class="btn" type="button" id="addMealBtn"><i data-icon="plus"></i> Add meal</button>
+          </div>
+        </div>
+
+        <section class="grid grid-4 mb-3" id="macroCards" aria-label="Daily totals"></section>
+
+        <div class="grid grid-aside">
+          <div>
+            <div class="card mb-2">
+              <div class="card-head"><h3 id="mealsTitle">Meals</h3><span class="muted small" id="mealsSub"></span></div>
+              <div id="mealList"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Last 7 days</h3><div class="tabs mb-0" style="border:0;margin:0" role="tablist" id="chartTabs">
+                <button class="tab active" role="tab" data-metric="calories">Calories</button><button class="tab" role="tab" data-metric="protein">Protein</button><button class="tab" role="tab" data-metric="carbs">Carbs</button><button class="tab" role="tab" data-metric="fat">Fat</button></div></div>
+              <div class="chart-box"><canvas id="weekChart" aria-label="Bar chart of the last seven days of nutrition"></canvas></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card mb-2">
+              <div class="card-head"><h3>Macro split</h3></div>
+              <div class="chart-box"><canvas id="macroChart" aria-label="Doughnut chart of protein, carbs and fat calories"></canvas></div>
+              <p class="tiny muted mt-1 mb-0">Calories from macros: protein 4, carbs 4, fat 9 kcal per gram.</p>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Water</h3><span class="badge blue" id="waterBadge"></span></div>
+              <div class="water-cups" id="waterCups" role="group" aria-label="Water cups"></div>
+              <div class="progress blue"><span id="waterBar" style="width:0"></span></div>
+              <div class="btn-row mt-2">
+                <button class="btn sm" type="button" id="waterPlus"><i data-icon="droplet"></i> Add a cup</button>
+                <button class="btn sm secondary" type="button" id="waterMinus">Remove a cup</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/nutrition.js"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Posture check · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="posture" data-title="Posture check">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>AI posture detection</h1>
+            <p>Use your camera to line yourself up with a form guide, then work through the checklist for your exercise.</p>
+          </div>
+        </div>
+
+        <div class="notice warn">
+          <i data-icon="alert"></i>
+          <div><b>No AI pose detection yet.</b> This page shows your camera and a form-guide overlay, and you tick the checklist yourself. It does not analyse your body or score your form. Real detection needs a pose-estimation model (for example MediaPipe or TensorFlow.js running in the browser, or video analysed on a server). That is a future integration. Video from your camera stays in this browser tab and is never uploaded or recorded.</div>
+        </div>
+
+        <div class="grid grid-aside">
+          <div class="card">
+            <div class="card-head">
+              <h3>Camera</h3>
+              <div class="btn-row">
+                <button class="btn" type="button" id="startCam"><i data-icon="camera"></i> Start camera</button>
+                <button class="btn secondary hidden" type="button" id="stopCam"><i data-icon="camera-off"></i> Stop camera</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="label" id="exLabel">Exercise</span>
+              <div class="seg" role="radiogroup" aria-labelledby="exLabel" id="exerciseSeg"></div>
+            </div>
+
+            <div class="cam-stage" id="stage">
+              <span class="cam-badge" id="camBadge"><span class="dot"></span> Camera off</span>
+              <video id="video" class="mirror hidden" autoplay playsinline muted></video>
+              <canvas id="overlay" class="hidden" aria-hidden="true"></canvas>
+              <div class="cam-placeholder" id="camPlaceholder">
+                <i data-icon="camera-off"></i>
+                <p><b>Camera is off</b></p>
+                <p class="small" id="camHelp">Press “Start camera” and allow access when your browser asks.</p>
+              </div>
+            </div>
+            <div id="camError" class="mt-2"></div>
+
+            <div class="grid grid-3 mt-2">
+              <label class="toggle-row" style="border:0;padding:0"><span>Guide overlay</span><span class="switch"><input type="checkbox" id="optOverlay" checked><span class="slider"></span></span></label>
+              <label class="toggle-row" style="border:0;padding:0"><span>Mirror view</span><span class="switch"><input type="checkbox" id="optMirror" checked><span class="slider"></span></span></label>
+              <label class="toggle-row" style="border:0;padding:0"><span>Side-on grid</span><span class="switch"><input type="checkbox" id="optGrid" checked><span class="slider"></span></span></label>
+            </div>
+          </div>
+
+          <div>
+            <div class="card mb-2">
+              <div class="card-head"><h3 id="guideTitle">Form guide</h3><span class="badge amber">Self-check</span></div>
+              <p class="small muted" id="camTip"></p>
+              <div id="checklist"></div>
+              <div class="mt-1">
+                <div class="meter-row mb-0"><div class="top"><span>Form checks ticked</span><b id="scoreText">0 / 0</b></div><div class="progress green"><span id="scoreBar" style="width:0"></span></div></div>
+              </div>
+              <h4 class="mt-2">Common mistakes</h4>
+              <ul class="small" id="mistakes"></ul>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h3>Set timer</h3></div>
+              <div class="flex between items-center">
+                <div class="stat"><div class="stat-ico teal"><i data-icon="clock"></i></div><div><div class="num" id="timerText">00:00</div><div class="lbl">Elapsed</div></div></div>
+                <div class="stat"><div><div class="num" id="repText">0</div><div class="lbl">Reps counted by you</div></div></div>
+              </div>
+              <div class="btn-row mt-2">
+                <button class="btn sm" type="button" id="timerBtn"><i data-icon="play"></i> Start</button>
+                <button class="btn sm secondary" type="button" id="repPlus">+1 rep</button>
+                <button class="btn sm secondary" type="button" id="repMinus" aria-label="Remove one rep">−1</button>
+                <button class="btn sm secondary" type="button" id="resetBtn">Reset</button>
+                <button class="btn sm" type="button" id="saveSession"><i data-icon="check"></i> Save session</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-3">
+          <div class="card-head"><h3>Saved form-check sessions</h3><span class="muted small" id="sessCount"></span></div>
+          <div id="sessionList"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/posture.js"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Membership · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="membership" data-title="Membership">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>Smart membership and auto renewal</h1>
+            <p>See your plan, choose how it renews, and compare what each plan includes.</p>
+          </div>
+        </div>
+
+        <div class="notice warn">
+          <i data-icon="lock"></i>
+          <div><b>Payment screens are a demonstration.</b> No money is charged, no card is stored (only the last 4 digits of a test card are kept in this browser), and nothing renews automatically. Real payments and automatic renewals need a secure backend with a payment gateway (such as Razorpay or Stripe), server-side tokenised cards, webhooks and scheduled renewal jobs. Never collect or store full card numbers in frontend code.</div>
+        </div>
+
+        <div class="grid grid-aside mb-3">
+          <div class="mem-hero" id="currentPlan" aria-live="polite"></div>
+          <div class="card">
+            <div class="card-head"><h3>Renewal preferences</h3><span class="demo-tag">Demo</span></div>
+            <form id="prefForm" novalidate>
+              <div class="toggle-row"><div><b id="arLabel">Auto-renew</b><span class="muted">Renew automatically at the end of each period.</span></div><label class="switch"><input type="checkbox" id="autoRenew" aria-labelledby="arLabel"><span class="slider"></span></label></div>
+              <div class="field mt-2"><label for="renewCycle">Renew every</label><select class="form-control" id="renewCycle"></select></div>
+              <div class="field"><label for="reminder">Remind me before expiry</label><select class="form-control" id="reminder"><option value="0">No reminder</option><option value="1">1 day before</option><option value="3">3 days before</option><option value="7">7 days before</option></select><div class="hint">Reminders need a backend to send email or SMS.</div></div>
+              <button class="btn block" type="submit">Save preferences</button>
+            </form>
+            <hr>
+            <div class="small"><b>Payment method</b><div class="flex between items-center mt-1" id="payMethod"></div></div>
+          </div>
+        </div>
+
+        <div class="card-head"><h2 class="mb-0">Plans</h2>
+          <div class="seg" role="radiogroup" aria-label="Billing period" id="cycleSeg"></div>
+        </div>
+        <section class="grid grid-3 mb-3" id="planGrid" aria-live="polite"></section>
+
+        <div class="card">
+          <div class="card-head"><h3>Membership history</h3><span class="muted small" id="histCount"></span></div>
+          <div id="historyList"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/membership.js"></script>
+</body>
+</html>

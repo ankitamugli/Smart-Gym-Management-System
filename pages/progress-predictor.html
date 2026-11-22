@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progress predictor · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="progress" data-title="Progress predictor">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>AI fitness progress predictor</h1>
+            <p>Track your weight and workouts, set a goal, and see where your current trend could take you.</p>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary" type="button" id="goalBtn"><i data-icon="target"></i> Edit goal</button>
+            <button class="btn secondary" type="button" id="logWorkoutBtn"><i data-icon="dumbbell"></i> Log workout</button>
+            <button class="btn" type="button" id="logWeightBtn"><i data-icon="scale"></i> Log weight</button>
+          </div>
+        </div>
+
+        <div class="notice warn">
+          <i data-icon="alert"></i>
+          <div><b>Demo projection, not an AI prediction.</b> The dashed line is a straight-line trend drawn from your recent weight entries by a few lines of JavaScript in this browser. It does not know about your diet, sleep, training or health, and real bodies do not change in straight lines. A true predictor needs a trained model on a server behind <code>GET /progress/prediction</code>. Treat the dates as a rough illustration only.</div>
+        </div>
+
+        <section class="grid grid-4 mb-3" id="progressStats" aria-label="Progress summary"></section>
+
+        <div class="grid grid-aside mb-3">
+          <div class="card">
+            <div class="card-head">
+              <h3>Weight and projection</h3>
+              <div class="flex items-center gap-1"><label for="horizon" class="small muted mb-0">Project</label>
+                <select class="form-control" id="horizon" style="width:auto;padding:.3rem .6rem"><option value="4">4 weeks</option><option value="8">8 weeks</option><option value="12" selected>12 weeks</option><option value="24">24 weeks</option></select></div>
+            </div>
+            <div class="chart-box" style="height:300px"><canvas id="weightChart" aria-label="Line chart of weight history with a dashed demo projection"></canvas></div>
+            <p class="tiny muted mt-1 mb-0" id="projNote"></p>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Goal tracker</h3><span class="demo-tag">Demo</span></div>
+            <div id="goalPanel"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-2 mb-3">
+          <div class="card">
+            <div class="card-head"><h3>Training minutes per week</h3></div>
+            <div class="chart-box"><canvas id="minutesChart" aria-label="Bar chart of weekly training minutes"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Body fat estimate</h3></div>
+            <div class="chart-box"><canvas id="fatChart" aria-label="Line chart of body fat percentage"></canvas></div>
+            <p class="tiny muted mt-1 mb-0">Body fat entries are optional and only as accurate as the method you use to measure them.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-head"><h3>Workout history</h3><span class="muted small" id="wkCount"></span></div>
+            <div id="workoutList"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Weight log</h3><span class="muted small" id="wtCount"></span></div>
+            <div id="weightList"></div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/charts.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/progress.js"></script>
+</body>
+</html>

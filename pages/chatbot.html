@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI fitness coach · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="chatbot" data-title="AI fitness coach">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>AI fitness chatbot</h1>
+            <p>Ask about workouts, nutrition, fitness habits and recovery.</p>
+          </div>
+        </div>
+
+        <div class="notice warn">
+          <i data-icon="bot"></i>
+          <div><b>Demo bot, not a real AI.</b> Replies come from a small list of keyword-matched answers in <code>js/data.js</code>. It cannot understand free-form questions and it gives general information only, not medical advice. To connect a real model, implement <code>POST /chatbot/messages</code> on your server and keep the AI provider key there. API keys must never be placed in frontend code.</div>
+        </div>
+
+        <div class="grid grid-aside">
+          <div class="chat-shell">
+            <div class="chat-head">
+              <div class="bot-avatar"><i data-icon="bot"></i></div>
+              <div style="flex:1"><b style="color:var(--ink)">FORMA Coach</b><div class="small muted" id="botStatus">Demo mode · keyword answers</div></div>
+              <button class="btn sm secondary" type="button" id="clearChat"><i data-icon="trash"></i> Clear chat</button>
+            </div>
+            <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Chat messages"></div>
+            <form class="chat-input" id="chatForm" autocomplete="off" novalidate>
+              <label class="sr-only" for="chatInput">Type your question</label>
+              <input class="form-control" id="chatInput" name="message" maxlength="400" placeholder="Ask a fitness question…">
+              <button class="btn" type="submit" id="sendBtn"><i data-icon="send"></i><span class="sr-only">Send</span></button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>Suggested questions</h3></div>
+            <div class="tabs" role="tablist" id="topicTabs"></div>
+            <div id="suggestList" class="chip-row" style="flex-direction:column;align-items:stretch"></div>
+            <hr>
+            <h4>About this coach</h4>
+            <ul class="small mb-0"><li>Answers are general and may not suit your situation.</li><li>Not for injuries, pain, eating disorders or medical conditions. See a qualified professional.</li><li>Chat history is stored only in this browser.</li></ul>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/chatbot.js"></script>
+</body>
+</html>

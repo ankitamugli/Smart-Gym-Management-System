@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workout planner · FORMA Smart Gym Management System</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body data-root="../" data-page="workout" data-title="Workout planner">
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="content" id="content">
+
+        <div class="page-head">
+          <div>
+            <h1>AI-based personal workout planner</h1>
+            <p>Tell FORMA your goal, level and equipment and get a week of training with sets, reps and rest times.</p>
+          </div>
+        </div>
+
+        <div class="notice no-print">
+          <i data-icon="info"></i>
+          <div><b>Demo planner.</b> Plans are built by simple rules running in your browser. They are not produced by an AI model. A true AI planner needs a server-side model or rules engine behind <code>POST /workout-plans/generate</code>. This is general fitness information, not medical advice. Check with a doctor first if you have an injury or health condition.</div>
+        </div>
+
+        <div class="grid grid-aside-l">
+          <!-- ===== Preferences form ===== -->
+          <form class="card no-print" id="planForm" novalidate aria-label="Workout preferences">
+            <div class="card-head"><h3>Your preferences</h3></div>
+
+            <div class="field">
+              <span class="label" id="goalLabel">Goal</span>
+              <div class="goal-cards" role="radiogroup" aria-labelledby="goalLabel" id="goalCards"></div>
+            </div>
+
+            <div class="field">
+              <span class="label" id="levelLabel">Experience level</span>
+              <div class="seg" role="radiogroup" aria-labelledby="levelLabel" id="levelSeg"></div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label for="duration">Session length</label>
+                <select class="form-control" id="duration" name="durationMin">
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60" selected>60 minutes</option>
+                  <option value="75">75 minutes</option>
+                  <option value="90">90 minutes</option>
+                </select>
+              </div>
+              <div class="field">
+                <span class="label" id="daysLabel">Days per week</span>
+                <div class="seg" role="radiogroup" aria-labelledby="daysLabel" id="daysSeg"></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="label" id="eqLabel">Equipment you can use</span>
+              <div class="chip-row" role="group" aria-labelledby="eqLabel" id="equipmentChips"></div>
+              <div class="hint">Bodyweight exercises are always included.</div>
+            </div>
+
+            <div class="field">
+              <label for="notes">Notes for your plan (optional)</label>
+              <textarea class="form-control" id="notes" name="notes" maxlength="200" placeholder="e.g. sore left knee, prefer short rests"></textarea>
+              <div class="hint">Saved with the plan. The demo generator does not read notes; a backend model could.</div>
+            </div>
+
+            <button class="btn lg block" type="submit"><i data-icon="sparkle"></i> Generate my plan</button>
+          </form>
+
+          <!-- ===== Plan output ===== -->
+          <div>
+            <div id="planOutput"></div>
+            <div class="card mt-3 no-print">
+              <div class="card-head"><h3>Saved plans</h3><span class="muted small" id="savedCount"></span></div>
+              <div id="savedPlans"></div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/workout.js"></script>
+</body>
+</html>

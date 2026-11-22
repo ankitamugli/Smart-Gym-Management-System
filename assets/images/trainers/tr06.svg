@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Illustrated avatar for Sneha Kulkarni">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#47231f"/><stop offset="1" stop-color="#d46a4a"/></linearGradient></defs>
+<rect width="400" height="300" fill="url(#g)"/>
+<circle cx="330" cy="50" r="90" fill="#fff" opacity=".06"/>
+<circle cx="60" cy="270" r="110" fill="#fff" opacity=".05"/>
+<path d="M150 118 C140 70 175 48 200 48 C225 48 260 70 250 118 L256 190 C240 205 160 205 144 190 Z" fill="#1a1210"/>
+<path d="M70 300 C70 232 128 205 200 205 C272 205 330 232 330 300 Z" fill="#2a6f77"/>
+<rect x="182" y="170" width="36" height="44" rx="14" fill="#d09468"/>
+<ellipse cx="200" cy="130" rx="46" ry="54" fill="#d09468"/>
+<path d="M158 112 C156 78 176 62 200 62 C224 62 244 78 242 112 C232 96 216 90 200 90 C184 90 168 96 158 112 Z" fill="#1a1210"/>
+<circle cx="182" cy="134" r="3.4" fill="#1b1410"/><circle cx="218" cy="134" r="3.4" fill="#1b1410"/>
+<path d="M188 158 Q200 168 212 158" stroke="#7a3f2a" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>
