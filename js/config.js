@@ -14,10 +14,10 @@
    ========================================================================== */
 window.FORMA_CONFIG = {
   // Root of your REST API, without a trailing slash.
-  baseUrl: 'http://localhost:8000/api/v1',
+  baseUrl: 'http://localhost:8080',
 
   // false = demo mode (localStorage). true = call the backend through fetch().
-  useBackend: false,
+  useBackend: true,
 
   // Request timeout in milliseconds.
   timeoutMs: 15000,

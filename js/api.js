@@ -1,344 +1,1303 @@
+
 /* ==========================================================================
-   FORMA – api.js   (data-access layer)
-
-   Every page talks to data ONLY through the `API` object below. Each function
-   returns a Promise and has two implementations:
-
-     • Demo mode    (FORMA_CONFIG.useBackend === false)  -> localStorage via Store
-     • Backend mode (FORMA_CONFIG.useBackend === true)   -> fetch() to REST endpoints
-
-   The backend branch is a documented PLACEHOLDER. No backend ships with this
-   project, so those branches have never talked to a real server. Check each
-   endpoint, request body and response shape against your server, using
-   docs/backend-integration-guide.md.
-
-   Expected response convention (see the guide):
-     success -> HTTP 2xx with JSON body (shape noted on each function)
-     failure -> HTTP 4xx/5xx with { "error": { "code": "...", "message": "..." } }
+   FORMA - API.JS
+   Connected to the actual Spring Boot backend controllers.
    ========================================================================== */
 
+/* ======================== CONFIGURATION ======================== */
+
 const API_CONFIG = Object.assign({
-  baseUrl: '', useBackend: false, timeoutMs: 15000, authMode: 'bearer',
-  equipmentPollMs: 10000, currency: '₹', branchName: 'FORMA Central'
+    baseUrl: 'http://localhost:8080',
+    useBackend: true,
+    timeoutMs: 15000,
+    authMode: 'bearer',
+    equipmentPollMs: 10000,
+    currency: '₹',
+    branchName: 'FORMA Central'
 }, window.FORMA_CONFIG || {});
 
-/** Demo-only logic registered by page scripts (workout generator, chatbot, predictor). */
-const DemoEngines = {};
-
 class ApiError extends Error {
-  constructor(message, status, code) { super(message); this.name = 'ApiError'; this.status = status || 0; this.code = code || 'error'; }
+    constructor(message, status = 0, code = 'error') {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.code = code;
+    }
 }
 
+const DemoEngines = window.DemoEngines || {};
+
+/* ======================== MAIN API ======================== */
+
 const API = (() => {
-  const useBackend = () => API_CONFIG.useBackend === true;
-  const SESSION_KEY = 'session';
 
-  /* ---------------- low-level fetch wrapper (backend mode) ---------------- */
-  function token() { const s = Store.get(SESSION_KEY); return s && s.token; }
-  function qs(params) {
-    const p = Object.entries(params || {}).filter(([, v]) => v !== undefined && v !== null && v !== '');
-    return p.length ? '?' + new URLSearchParams(p).toString() : '';
-  }
-  /**
-   * http('GET', '/meals', { query:{date:'2026-11-20'} })
-   * http('POST', '/meals', { body:{...} })
-   */
-  async function http(method, path, { body, query } = {}) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), API_CONFIG.timeoutMs);
-    const headers = { 'Accept': 'application/json' };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
-    if (API_CONFIG.authMode === 'bearer' && token()) headers['Authorization'] = 'Bearer ' + token();
-    try {
-      const res = await fetch(API_CONFIG.baseUrl + path + qs(query), {
-        method, headers, signal: ctrl.signal,
-        credentials: API_CONFIG.authMode === 'cookie' ? 'include' : 'same-origin',
-        body: body !== undefined ? JSON.stringify(body) : undefined
-      });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : null;
-      if (!res.ok) {
-        const e = data && data.error ? data.error : {};
-        throw new ApiError(e.message || ('Request failed (' + res.status + ')'), res.status, e.code);
-      }
-      return data;
-    } catch (err) {
-      if (err instanceof ApiError) throw err;
-      if (err.name === 'AbortError') throw new ApiError('The request timed out. Check your connection and try again.', 0, 'timeout');
-      throw new ApiError('Could not reach the server at ' + API_CONFIG.baseUrl + '. Check that the backend is running.', 0, 'network');
-    } finally { clearTimeout(timer); }
-  }
+    const SESSION_KEY = 'session';
 
-  const later = fn => Promise.resolve().then(fn);
-  const clone = v => JSON.parse(JSON.stringify(v));
+    const useBackend = () => API_CONFIG.useBackend === true;
 
-  /**
-   * Generic CRUD collection.
-   *   list(params)      GET    {endpoint}?params         -> Array
-   *   create(item)      POST   {endpoint}                -> created item
-   *   update(id,patch)  PATCH  {endpoint}/{id}           -> updated item
-   *   remove(id)        DELETE {endpoint}/{id}           -> { ok:true }
-   */
-  function collection(storeKey, endpoint, seedFn, idPrefix) {
-    const all = () => Store.ensure(storeKey, seedFn);
-    return {
-      list: (params = {}) => useBackend() ? http('GET', endpoint, { query: params }) : later(() => {
-        const keys = Object.keys(params).filter(k => params[k] !== undefined && params[k] !== '');
-        return clone(all().filter(it => keys.every(k => String(it[k]) === String(params[k]))));
-      }),
-      create: item => useBackend() ? http('POST', endpoint, { body: item }) : later(() => {
-        const rec = Object.assign({ id: Store.uid(idPrefix), createdAt: new Date().toISOString() }, clone(item));
-        const list = all(); list.push(rec); Store.set(storeKey, list); return clone(rec);
-      }),
-      update: (id, patch) => useBackend() ? http('PATCH', endpoint + '/' + encodeURIComponent(id), { body: patch }) : later(() => {
-        const list = all(); const i = list.findIndex(x => x.id === id);
-        if (i < 0) throw new ApiError('That record no longer exists.', 404, 'not_found');
-        list[i] = Object.assign({}, list[i], clone(patch), { updatedAt: new Date().toISOString() }); Store.set(storeKey, list); return clone(list[i]);
-      }),
-      remove: id => useBackend() ? http('DELETE', endpoint + '/' + encodeURIComponent(id)) : later(() => {
-        Store.set(storeKey, all().filter(x => x.id !== id)); return { ok: true };
-      })
+    const clone = value =>
+        value == null ? value : JSON.parse(JSON.stringify(value));
+
+    /* ======================== LOCAL STORAGE ======================== */
+
+    const StoreFallback = {
+        get(key, fallback = null) {
+            try {
+                const value = localStorage.getItem('forma_' + key);
+                return value ? JSON.parse(value) : fallback;
+            } catch (error) {
+                return fallback;
+            }
+        },
+
+        set(key, value) {
+            localStorage.setItem('forma_' + key, JSON.stringify(value));
+            return value;
+        },
+
+        remove(key) {
+            localStorage.removeItem('forma_' + key);
+        },
+
+        ensure(key, seed) {
+            const value = this.get(key);
+            if (value !== null) return value;
+
+            const initial =
+                typeof seed === 'function' ? seed() : seed;
+
+            this.set(key, initial);
+            return initial;
+        },
+
+        uid(prefix = 'id') {
+            return prefix + '_' + Date.now() + '_' +
+                Math.random().toString(36).slice(2, 8);
+        },
+
+        clearAll() {
+            Object.keys(localStorage)
+                .filter(key => key.startsWith('forma_'))
+                .forEach(key => localStorage.removeItem(key));
+        }
     };
-  }
 
-  /* ======================================================================
-     AUTH   (endpoints: POST /auth/login, POST /auth/register, POST /auth/logout,
-             GET /users/me, PATCH /users/me)
-     ====================================================================== */
-  const auth = {
-    /** Synchronous session lookup used by the page guard and header. */
-    session: () => Store.get(SESSION_KEY),
-    hasSession: () => !!Store.get(SESSION_KEY),
+    const db = window.Store || StoreFallback;
 
-    /** POST /auth/login  body {email,password} -> { token, user:{id,name,email,memberId} } */
-    async login({ email, password }) {
-      if (useBackend()) {
-        const r = await http('POST', '/auth/login', { body: { email, password } });
-        Store.set(SESSION_KEY, { token: r.token, user: r.user }); return r.user;
-      }
-      // DEMO ONLY: any well-formed credentials work. No password is checked or stored.
-      const profile = Store.get('user') || DemoData.user();
-      const user = Object.assign({}, profile, { email: email || profile.email });
-      Store.set('user', user);
-      Store.set(SESSION_KEY, { token: 'demo-token', user: { id: user.id, name: user.name, email: user.email, memberId: user.memberId } });
-      return user;
-    },
-    /** POST /auth/register body {name,email,password,phone} -> { token, user } */
-    async register({ name, email, password, phone }) {
-      if (useBackend()) {
-        const r = await http('POST', '/auth/register', { body: { name, email, password, phone } });
-        Store.set(SESSION_KEY, { token: r.token, user: r.user }); return r.user;
-      }
-      const user = Object.assign(DemoData.user(), { name: name || 'User', email, phone: phone || '' });
-      Store.set('user', user);
-      Store.set(SESSION_KEY, { token: 'demo-token', user: { id: user.id, name: user.name, email: user.email, memberId: user.memberId } });
-      return user;
-    },
-    /** Demo shortcut used by "Continue as demo User". */
-    async demoLogin() { return auth.login({ email: DemoData.user().email, password: '' }); },
-    /** POST /auth/logout */
-    async logout() {
-      if (useBackend()) { try { await http('POST', '/auth/logout'); } catch (e) { /* ignore */ } }
-      Store.remove(SESSION_KEY);
+    function getDemoData(key, fallback = []) {
+        if (window.DemoData && window.DemoData[key] !== undefined) {
+            const value = window.DemoData[key];
+            return clone(typeof value === 'function' ? value() : value);
+        }
+        return clone(fallback);
     }
-  };
 
-  const user = {
-    /** GET /users/me -> user object */
-    get: () => useBackend() ? http('GET', '/users/me') : later(() => clone(Store.ensure('user', DemoData.user))),
-    /** PATCH /users/me body {name?,phone?,heightCm?,...} -> user object */
-    update: patch => useBackend() ? http('PATCH', '/users/me', { body: patch }) : later(() => {
-      const u = Object.assign({}, Store.ensure('user', DemoData.user), clone(patch)); Store.set('user', u);
-      const s = Store.get(SESSION_KEY); if (s) { s.user = Object.assign({}, s.user, { name: u.name, email: u.email }); Store.set(SESSION_KEY, s); }
-      return clone(u);
-    })
-  };
+    function ensure(key, fallback = []) {
+        return db.ensure(key, () => getDemoData(key, fallback));
+    }
 
-  /* ======================================================================
-     1. WORKOUT PLANNER  (POST /workout-plans/generate, GET/POST/DELETE /workout-plans)
-     ====================================================================== */
-  const workoutPlans = collection('workoutPlans', '/workout-plans', () => [], 'plan');
-  const workout = {
-    /**
-     * POST /workout-plans/generate
-     * body  { goal, level, durationMin, daysPerWeek, equipment:[...], notes }
-     * reply { name, summary, days:[{day,focus,rest,estMinutes,exercises:[{name,muscle,sets,reps,restSec,notes}]}], tips:[] }
-     * Demo: generated in the browser by DemoEngines.workout (js/workout.js). Real AI/rules engine belongs on the server.
-     */
-    generate: prefs => useBackend() ? http('POST', '/workout-plans/generate', { body: prefs }) : later(() => DemoEngines.workout(prefs)),
-    list: workoutPlans.list, save: workoutPlans.create, remove: workoutPlans.remove,
-    /** GET /exercises  (static reference data; demo reads js/data.js) */
-    exercises: () => useBackend() ? http('GET', '/exercises') : later(() => DemoData.exercises)
-  };
+    function uid(prefix) {
+        return db.uid(prefix);
+    }
 
-  /* ======================================================================
-     2. POSTURE DETECTION  (GET /posture/guides, POST /posture/sessions, GET /posture/sessions)
-     Real pose estimation needs an ML model (e.g. MediaPipe / TensorFlow.js in the
-     browser, or video streamed to a server). It is NOT implemented here.
-     ====================================================================== */
-  const postureSessions = collection('postureSessions', '/posture/sessions', () => [], 'ps');
-  const posture = {
-    guides: () => useBackend() ? http('GET', '/posture/guides') : later(() => DemoData.postureGuides),
-    /** POST /posture/sessions body {exercise, durationSec, reps, checklistScore, notes} */
-    saveSession: postureSessions.create, sessions: postureSessions.list, removeSession: postureSessions.remove
-  };
+    /* ======================== SESSION / TOKEN ======================== */
 
-  /* ======================================================================
-     3. NUTRITION  (GET/POST/PATCH/DELETE /meals, GET/PUT /nutrition/goals, GET/PUT /water, GET /foods)
-     ====================================================================== */
-  const meals = collection('meals', '/meals', DemoData.seedMeals, 'meal');
-  const nutrition = {
-    /** GET /meals?date=YYYY-MM-DD -> [{id,date,type,items:[{foodId,name,serving,qty,calories,protein,carbs,fat}]}] */
-    meals: meals.list, addMeal: meals.create, updateMeal: meals.update, removeMeal: meals.remove,
-    /** GET /foods?search=rice -> [{id,name,serving,calories,protein,carbs,fat}] */
-    foods: (search = '') => useBackend() ? http('GET', '/foods', { query: { search } }) : later(() => {
-      const q = search.trim().toLowerCase(); return clone(q ? DemoData.foods.filter(f => f.name.toLowerCase().includes(q)) : DemoData.foods);
-    }),
-    /** GET /nutrition/goals -> {calories,protein,carbs,fat,waterMl,cupMl} */
-    goals: () => useBackend() ? http('GET', '/nutrition/goals') : later(() => clone(Store.ensure('nutritionGoals', DemoData.nutritionGoals))),
-    /** PUT /nutrition/goals body same shape */
-    saveGoals: g => useBackend() ? http('PUT', '/nutrition/goals', { body: g }) : later(() => { Store.set('nutritionGoals', clone(g)); return clone(g); }),
-    /** GET /water?from=&to= -> [{date,cups}] */
-    water: () => useBackend() ? http('GET', '/water') : later(() => clone(Store.ensure('water', DemoData.seedWater))),
-    /** PUT /water/{date} body {cups} */
-    setWater: (date, cups) => useBackend() ? http('PUT', '/water/' + date, { body: { cups } }) : later(() => {
-      const list = Store.ensure('water', DemoData.seedWater); const i = list.findIndex(x => x.date === date);
-      if (i >= 0) list[i].cups = cups; else list.push({ date, cups }); Store.set('water', list); return { date, cups };
-    })
-  };
+    function session() {
+        return db.get(SESSION_KEY);
+    }
 
-  /* ======================================================================
-     4. QR CHECK-IN  (GET /checkins/qr-token, POST /checkins, GET /checkins)
-     Real verification MUST happen on the server: sign short-lived tokens and
-     check them against the membership. The demo only checks a text prefix.
-     ====================================================================== */
-  const checkinList = collection('checkins', '/checkins', DemoData.seedCheckins, 'chk');
-  const checkin = {
-    /** GET /checkins/qr-token -> { token, expiresAt }  (server-signed, short-lived) */
-    qrToken: () => useBackend() ? http('GET', '/checkins/qr-token') : later(() => {
-      const u = Store.ensure('user', DemoData.user);
-      return { token: 'FORMA-DEMO|' + u.memberId + '|' + Date.now().toString(36), expiresAt: new Date(Date.now() + 5 * 60000).toISOString(), demo: true };
-    }),
-    /** POST /checkins body {token, method:'qr'|'scan'|'manual'} -> {id,date,time,status,member:{name,plan}} */
-    verify: ({ token: tk, method }) => useBackend() ? http('POST', '/checkins', { body: { token: tk, method } }) : later(() => {
-      if (!tk || !String(tk).startsWith('FORMA-DEMO|')) throw new ApiError('This code is not a FORMA demo QR code. Use the code shown on the "My QR" tab.', 422, 'invalid_token');
-      const now = new Date(); const date = DemoData.iso(now);
-      const hh = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-      const list = Store.ensure('checkins', DemoData.seedCheckins);
-      const existing = list.find(c => c.date === date && c.method !== 'seed');
-      const rec = { id: Store.uid('chk'), date, time: hh, method: method || 'qr', branch: API_CONFIG.branchName, status: 'demo-recorded', createdAt: now.toISOString() };
-      list.push(rec); Store.set('checkins', list);
-      const mem = Store.ensure('membership', DemoData.seedMembership);
-      const plan = DemoData.membershipPlans.find(p => p.id === mem.planId);
-      const u = Store.ensure('user', DemoData.user);
-      return { ...rec, alreadyCheckedInToday: !!existing, member: { name: u.name, memberId: u.memberId, plan: plan ? plan.name : '' } };
-    }),
-    list: checkinList.list, remove: checkinList.remove
-  };
+    function token() {
+        const current = session();
+        return current && current.token;
+    }
 
-  /* ======================================================================
-     5. EQUIPMENT  (GET /equipment, PATCH /equipment/{id} [staff only])
-     For real-time updates use WebSockets or Server-Sent Events from the server
-     (e.g. GET /equipment/stream). The UI polls list() as a simple placeholder.
-     ====================================================================== */
-  const equipmentCol = collection('equipment', '/equipment', DemoData.seedEquipment, 'eq');
-  const equipment = {
-    /** GET /equipment?category=&status= -> [{id,name,category,type,zone,status,waitMinutes,updatedAt}] */
-    list: equipmentCol.list,
-    /** PATCH /equipment/{id} body {status, waitMinutes}. Normally staff/IoT sensors only. */
-    setStatus: (id, status, waitMinutes) => equipmentCol.update(id, { status, waitMinutes: status === 'occupied' ? (waitMinutes || 5) : 0 }),
-    categories: () => DemoData.equipmentCategories
-  };
+    function currentUser() {
+        const current = session();
+        return current && current.user;
+    }
 
-  /* ======================================================================
-     6. PROGRESS  (GET/POST/DELETE /workouts, /body-metrics; GET/PUT /goals; GET /progress/prediction)
-     ====================================================================== */
-  const workoutLog = collection('workouts', '/workouts', DemoData.seedWorkouts, 'wk');
-  const metrics = collection('bodyMetrics', '/body-metrics', DemoData.seedBodyMetrics, 'bm');
-  const progress = {
-    workouts: workoutLog.list, addWorkout: workoutLog.create, removeWorkout: workoutLog.remove,
-    metrics: metrics.list, addMetric: metrics.create, removeMetric: metrics.remove,
-    /** GET /goals -> {type,startWeightKg,targetWeightKg,targetDate,weeklyWorkouts} */
-    goal: () => useBackend() ? http('GET', '/goals') : later(() => clone(Store.ensure('goal', DemoData.seedGoal))),
-    saveGoal: g => useBackend() ? http('PUT', '/goals', { body: g }) : later(() => { Store.set('goal', clone(g)); return clone(g); }),
-    /**
-     * GET /progress/prediction?weeks=12
-     * reply { generatedBy:'model-name', weeks:[{date,predictedWeightKg,lower,upper}], etaTargetDate, confidence }
-     * Demo: simple linear trend in the browser (DemoEngines.prediction). NOT an AI model.
-     */
-    prediction: ({ weeks = 12 } = {}) => useBackend() ? http('GET', '/progress/prediction', { query: { weeks } }) : later(async () => DemoEngines.prediction({ weeks, metrics: await metrics.list(), goal: Store.ensure('goal', DemoData.seedGoal) }))
-  };
+    function currentUserId() {
+        const user = currentUser();
+        return user && (user.id || user.userId);
+    }
 
-  /* ======================================================================
-     7. TRAINERS  (GET /trainers, GET /trainers/{id}, GET/POST/PATCH/DELETE /trainer-bookings)
-     ====================================================================== */
-  const bookings = collection('trainerBookings', '/trainer-bookings', () => [], 'bk');
-  const trainers = {
-    /** GET /trainers?search=&specialization=&day= -> [{id,name,specializations,experienceYears,rating,reviewCount,pricePerSession,availableDays,languages,slots,photo,bio,certifications}] */
-    list: () => useBackend() ? http('GET', '/trainers') : later(() => clone(DemoData.trainers)),
-    get: id => useBackend() ? http('GET', '/trainers/' + encodeURIComponent(id)) : later(() => clone(DemoData.trainers.find(t => t.id === id))),
-    /** POST /trainer-bookings body {trainerId,date,time,goal,notes,contactPhone} -> booking {id,status:'requested'} */
-    bookings: bookings.list, book: bookings.create, updateBooking: bookings.update, cancelBooking: bookings.remove
-  };
+    function today() {
+    const now = new Date();
 
-  /* ======================================================================
-     8. CHATBOT  (POST /chatbot/messages, GET /chatbot/history, DELETE /chatbot/history)
-     Keep AI provider keys on the SERVER. The browser only calls your own endpoint.
-     ====================================================================== */
-  const chatbot = {
-    /**
-     * POST /chatbot/messages body {message, conversationId?}
-     * reply { reply:'text', conversationId, suggestions:[] }
-     */
-    send: (message, history) => useBackend() ? http('POST', '/chatbot/messages', { body: { message } }) : later(() => DemoEngines.chatbot(message, history)),
-    history: () => useBackend() ? http('GET', '/chatbot/history') : later(() => clone(Store.get('chatHistory', []))),
-    saveHistory: list => useBackend() ? Promise.resolve(list) : later(() => { Store.set('chatHistory', clone(list)); return list; }),
-    clearHistory: () => useBackend() ? http('DELETE', '/chatbot/history') : later(() => { Store.remove('chatHistory'); return { ok: true }; })
-  };
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
 
-  /* ======================================================================
-     9. MEMBERSHIP  (GET /membership/plans, GET /membership, POST /membership/subscribe,
-                     PATCH /membership/preferences, POST /membership/cancel, GET /membership/history,
-                     POST /payments/intents)
-     Real payments need a payment gateway (Razorpay, Stripe, …) with tokenised
-     cards created on the server. The browser must NEVER store card numbers.
-     ====================================================================== */
-  const addMonths = (dateStr, months) => { const d = new Date(dateStr + 'T12:00:00'); d.setMonth(d.getMonth() + months); return DemoData.iso(d); };
-  const membership = {
-    plans: () => useBackend() ? http('GET', '/membership/plans') : later(() => ({ plans: clone(DemoData.membershipPlans), cycles: clone(DemoData.billingCycles) })),
-    /** GET /membership -> {planId,cycle,status,startDate,expiryDate,autoRenew,reminderDaysBefore,renewalCycle,paymentMethod:{brand,last4}} */
-    current: () => useBackend() ? http('GET', '/membership') : later(() => clone(Store.ensure('membership', DemoData.seedMembership))),
-    history: () => useBackend() ? http('GET', '/membership/history') : later(() => clone(Store.ensure('membershipHistory', DemoData.seedMembershipHistory))),
-    /**
-     * POST /membership/subscribe body {planId, cycle, paymentMethodId}
-     * Backend flow: create payment intent -> confirm with gateway SDK -> server activates plan.
-     * Demo: records a fake paid entry. NO real payment is made.
-     */
-    subscribe: ({ planId, cycle, amount, last4, brand }) => useBackend() ? http('POST', '/membership/subscribe', { body: { planId, cycle } }) : later(() => {
-      const plan = DemoData.membershipPlans.find(p => p.id === planId); const cyc = DemoData.billingCycles.find(c => c.id === cycle) || DemoData.billingCycles[0];
-      if (!plan) throw new ApiError('Choose a plan to continue.', 422, 'invalid_plan');
-      const cur = Store.ensure('membership', DemoData.seedMembership);
-      const today = DemoData.today();
-      const startFrom = cur.status === 'active' && cur.expiryDate > today && cur.planId === planId ? cur.expiryDate : today;
-      const next = Object.assign({}, cur, { planId, cycle, status: 'active', startDate: today, expiryDate: addMonths(startFrom, cyc.months), renewalCycle: cycle, paymentMethod: { brand: brand || cur.paymentMethod.brand, last4: last4 || cur.paymentMethod.last4, holder: 'User' } });
-      Store.set('membership', next);
-      const hist = Store.ensure('membershipHistory', DemoData.seedMembershipHistory);
-      hist.unshift({ id: Store.uid('mh'), date: today, description: plan.name + ' plan – ' + cyc.label.toLowerCase(), amount, status: 'paid (demo)', planId });
-      Store.set('membershipHistory', hist);
-      return clone(next);
-    }),
-    /** PATCH /membership/preferences body {autoRenew, reminderDaysBefore, renewalCycle} */
-    savePreferences: patch => useBackend() ? http('PATCH', '/membership/preferences', { body: patch }) : later(() => {
-      const next = Object.assign({}, Store.ensure('membership', DemoData.seedMembership), clone(patch)); Store.set('membership', next); return clone(next);
-    }),
-    /** POST /membership/cancel -> membership (status:'cancelled' effective at expiry) */
-    cancel: () => useBackend() ? http('POST', '/membership/cancel') : later(() => {
-      const next = Object.assign({}, Store.ensure('membership', DemoData.seedMembership), { autoRenew: false, status: 'cancelling' }); Store.set('membership', next); return clone(next);
-    })
-  };
+    return `${year}-${month}-${day}`;
+}
 
-  /** Clears all demo data (used by the "Reset demo data" menu item). Demo mode only. */
-  function resetDemo() { const s = Store.get(SESSION_KEY); const theme = Store.get('theme'); Store.clearAll(); if (s) Store.set(SESSION_KEY, { token: s.token, user: { id: 'usr_demo', name: 'User', email: 'user@forma.demo', memberId: 'FRM-000001' } }); if (theme) Store.set('theme', theme); }
+    function requireUserId() {
+        const id = currentUserId();
 
-  return { config: API_CONFIG, http, auth, user, workout, posture, nutrition, checkin, equipment, progress, trainers, chatbot, membership, resetDemo };
+        if (!id) {
+            throw new ApiError(
+                'User ID not found. Please login again.',
+                401,
+                'user_not_found'
+            );
+        }
+
+        return id;
+    }
+
+    /* ======================== QUERY PARAMETERS ======================== */
+
+    function qs(params) {
+        const values = Object.entries(params || {})
+            .filter(([, value]) =>
+                value !== undefined &&
+                value !== null &&
+                value !== ''
+            );
+
+        return values.length
+            ? '?' + new URLSearchParams(values).toString()
+            : '';
+    }
+
+    /* ======================== HTTP REQUEST ======================== */
+
+    async function http(method, path, options = {}) {
+
+        if (!useBackend()) {
+            throw new ApiError(
+                'Backend is disabled.',
+                0,
+                'backend_disabled'
+            );
+        }
+
+        const { body, query } = options;
+
+        const controller = new AbortController();
+
+        const timer = setTimeout(
+            () => controller.abort(),
+            API_CONFIG.timeoutMs
+        );
+
+        const headers = {
+            Accept: 'application/json'
+        };
+
+        if (body !== undefined) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        if (
+            API_CONFIG.authMode === 'bearer' &&
+            token() &&
+            !options.skipAuth
+        ) {
+            headers.Authorization = 'Bearer ' + token();
+        }
+
+        const baseUrl = API_CONFIG.baseUrl.replace(/\/+$/, '');
+        const url = baseUrl + path + qs(query);
+
+        try {
+            const response = await fetch(url, {
+                method,
+                headers,
+                signal: controller.signal,
+                credentials:
+                    API_CONFIG.authMode === 'cookie'
+                        ? 'include'
+                        : 'same-origin',
+                body: body !== undefined
+                    ? JSON.stringify(body)
+                    : undefined
+            });
+
+            const responseText = await response.text();
+
+            let data = null;
+
+            try {
+                data = responseText
+                    ? JSON.parse(responseText)
+                    : null;
+            } catch (error) {
+                if (response.ok) {
+                    data = responseText;
+                }
+            }
+
+            if (!response.ok) {
+                const message =
+                    data?.message ||
+                    data?.error?.message ||
+                    data?.detail ||
+                    (typeof data === 'string' ? data : null) ||
+                    `Request failed (${response.status})`;
+
+                throw new ApiError(
+                    message,
+                    response.status,
+                    data?.code || data?.error?.code || 'request_failed'
+                );
+            }
+
+            return data;
+
+        } catch (error) {
+            if (error instanceof ApiError) throw error;
+
+            if (error.name === 'AbortError') {
+                throw new ApiError(
+                    'Request timed out.',
+                    0,
+                    'timeout'
+                );
+            }
+
+            throw new ApiError(
+                'Cannot connect to Spring Boot server: ' + baseUrl,
+                0,
+                'network'
+            );
+
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    /* ======================== GENERIC COLLECTION ======================== */
+
+    function collection(
+        storeKey,
+        endpoint,
+        seed = [],
+        prefix = 'id',
+        updateMethod = 'PUT'
+    ) {
+        return {
+
+            list: params => {
+                if (useBackend()) {
+                    return http('GET', endpoint, { query: params });
+                }
+
+                return Promise.resolve(
+                    ensure(storeKey, seed).filter(record =>
+                        Object.entries(params || {}).every(
+                            ([key, value]) =>
+                                value === undefined ||
+                                value === '' ||
+                                String(record[key]) === String(value)
+                        )
+                    )
+                ).then(clone);
+            },
+
+            create: item => {
+                if (useBackend()) {
+                    return http('POST', endpoint, { body: item });
+                }
+
+                const records = ensure(storeKey, seed);
+
+                const record = Object.assign({
+                    id: uid(prefix),
+                    createdAt: new Date().toISOString()
+                }, clone(item));
+
+                records.push(record);
+                db.set(storeKey, records);
+
+                return Promise.resolve(clone(record));
+            },
+
+            update: (id, patch) => {
+                if (useBackend()) {
+                    return http(
+                        updateMethod,
+                        endpoint + '/' + encodeURIComponent(id),
+                        { body: patch }
+                    );
+                }
+
+                const records = ensure(storeKey, seed);
+
+                const index = records.findIndex(
+                    item => String(item.id) === String(id)
+                );
+
+                if (index < 0) {
+                    throw new ApiError('Record not found.', 404, 'not_found');
+                }
+
+                records[index] = Object.assign(
+                    {},
+                    records[index],
+                    clone(patch),
+                    { updatedAt: new Date().toISOString() }
+                );
+
+                db.set(storeKey, records);
+
+                return Promise.resolve(clone(records[index]));
+            },
+
+            remove: id => {
+                if (useBackend()) {
+                    return http(
+                        'DELETE',
+                        endpoint + '/' + encodeURIComponent(id)
+                    );
+                }
+
+                const records = ensure(storeKey, seed);
+
+                db.set(
+                    storeKey,
+                    records.filter(item => String(item.id) !== String(id))
+                );
+
+                return Promise.resolve({ ok: true });
+            }
+        };
+    }
+
+    /* ======================== AUTHENTICATION ======================== */
+
+    function normalizeAuthResponse(result) {
+        const data = result?.data || result || {};
+
+        const jwt =
+            data.token ||
+            data.jwt ||
+            data.accessToken ||
+            data.access_token;
+
+        const user =
+            data.user ||
+            data.authUser ||
+            data.auth_user ||
+            data.profile ||
+            data.data?.user ||
+            null;
+
+        if (!jwt) {
+            throw new ApiError(
+                'Login response did not contain a JWT token. Check AuthResponse.',
+                500,
+                'missing_token'
+            );
+        }
+
+        if (!user) {
+            throw new ApiError(
+                'Login response did not contain user information.',
+                500,
+                'missing_user'
+            );
+        }
+
+        return { token: jwt, user };
+    }
+
+    const auth = {
+        session: () => session(),
+
+        hasSession: () => !!session()?.token,
+
+        async login({ email, password } = {}) {
+            if (!email || !password) {
+                throw new ApiError(
+                    'Please enter email and password.',
+                    422
+                );
+            }
+
+            if (useBackend()) {
+                const result = await http(
+                    'POST',
+                    '/api/v1/auth/login',
+                    {
+                        body: { email, password },
+                        skipAuth: true
+                    }
+                );
+
+                const normalized = normalizeAuthResponse(result);
+
+                db.set(SESSION_KEY, normalized);
+                db.set('user', normalized.user);
+
+                return normalized.user;
+            }
+
+            const user = Object.assign(
+                {},
+                db.get('user') || {
+                    id: 'usr_demo',
+                    name: 'Demo User'
+                },
+                { email }
+            );
+
+            db.set('user', user);
+            db.set(SESSION_KEY, {
+                token: 'demo-token',
+                user
+            });
+
+            return clone(user);
+        },
+
+        async register({ name, email, password, phone } = {}) {
+            if (useBackend()) {
+                const result = await http(
+                    'POST',
+                    '/api/v1/auth/register',
+                    {
+                        body: { name, email, password, phone },
+                        skipAuth: true
+                    }
+                );
+
+                // Registration response may not automatically log in.
+                if (
+                    result?.token ||
+                    result?.jwt ||
+                    result?.accessToken ||
+                    result?.data?.token
+                ) {
+                    const normalized = normalizeAuthResponse(result);
+                    db.set(SESSION_KEY, normalized);
+                    db.set('user', normalized.user);
+                    return normalized.user;
+                }
+
+                return result;
+            }
+
+            const user = {
+                id: uid('usr'),
+                name,
+                email,
+                phone
+            };
+
+            db.set('user', user);
+            db.set(SESSION_KEY, {
+                token: 'demo-token',
+                user
+            });
+
+            return clone(user);
+        },
+
+        async demoLogin() {
+            return auth.login({
+                email: 'user@forma.demo',
+                password: 'demo'
+            });
+        },
+
+        async logout() {
+            if (useBackend()) {
+                try {
+                    await http('POST', '/api/v1/auth/logout');
+                } finally {
+                    db.remove(SESSION_KEY);
+                }
+            } else {
+                db.remove(SESSION_KEY);
+            }
+
+            return { ok: true };
+        }
+    };
+
+    /* ======================== USER PROFILE ======================== */
+
+    const user = {
+        get: () => useBackend()
+            ? http('GET', '/api/v1/users/me')
+            : Promise.resolve(ensure('user', {
+                id: 'usr_demo',
+                name: 'Demo User',
+                email: 'user@forma.demo'
+            })),
+
+        update: patch => useBackend()
+            ? http('PATCH', '/api/v1/users/me', { body: patch })
+            : Promise.resolve().then(() => {
+                const updated = Object.assign(
+                    {},
+                    ensure('user', {}),
+                    clone(patch)
+                );
+                db.set('user', updated);
+                return clone(updated);
+            })
+    };
+
+    /* ======================== 1. WORKOUT PLANNER ======================== */
+
+    const workoutPlans = collection(
+        'workoutPlans',
+        '/api/v1/workout-plans',
+        [],
+        'plan',
+        'PUT'
+    );
+
+    const workout = {
+        generate: prefs => useBackend()
+            ? http('POST', '/api/v1/workout-plans/generate', {
+                body: prefs
+            })
+            : Promise.resolve(
+                typeof DemoEngines.workout === 'function'
+                    ? DemoEngines.workout(prefs)
+                    : { name: 'FORMA Workout Plan', days: [], tips: [] }
+            ),
+
+        list: workoutPlans.list,
+        save: workoutPlans.create,
+        remove: workoutPlans.remove,
+
+        exercises: () => Promise.resolve(
+            getDemoData('exercises', [])
+        )
+    };
+
+    /* ======================== 2. POSTURE ======================== */
+
+    const posture = {
+        guides: () => useBackend()
+            ? http('GET', '/api/v1/posture/guides')
+            : Promise.resolve(getDemoData('postureGuides', [])),
+
+        saveSession: data => useBackend()
+            ? http('POST', '/api/v1/posture/sessions', { body: data })
+            : Promise.resolve().then(() => {
+                const records = ensure('postureSessions', []);
+                const record = Object.assign(
+                    { id: uid('ps') },
+                    clone(data)
+                );
+                records.push(record);
+                db.set('postureSessions', records);
+                return clone(record);
+            }),
+
+        sessions: params => useBackend()
+            ? http('GET', '/api/v1/posture/sessions', { query: params })
+            : Promise.resolve(ensure('postureSessions', [])),
+
+        removeSession: id => useBackend()
+            ? http('DELETE', '/api/v1/posture/sessions/' + encodeURIComponent(id))
+            : Promise.resolve().then(() => {
+                const records = ensure('postureSessions', []);
+                db.set(
+                    'postureSessions',
+                    records.filter(item => String(item.id) !== String(id))
+                );
+                return { ok: true };
+            })
+    };
+
+/* ======================== 3. NUTRITION TRACKER ======================== */
+
+const nutrition = {
+
+    // GET all meals for a date
+    meals: params => useBackend()
+        ? http('GET', '/api/nutrition', {
+            query: typeof params === 'string'
+                ? { date: params }
+                : params
+        })
+        : Promise.resolve(ensure('meals', [])),
+
+    // ADD meal
+    addMeal: meal => useBackend()
+        ? http('POST', '/api/nutrition', { body: meal })
+        : Promise.resolve().then(() => {
+            const records = ensure('meals', []);
+            const record = Object.assign(
+                { id: uid('meal') },
+                clone(meal)
+            );
+            records.push(record);
+            db.set('meals', records);
+            return clone(record);
+        }),
+
+    // UPDATE meal (backend PUT endpoint must exist)
+    updateMeal: (id, meal) => useBackend()
+        ? http('PUT', '/api/nutrition/' + encodeURIComponent(id), {
+            body: meal
+        })
+        : Promise.resolve().then(() => {
+            const records = ensure('meals', []);
+            const index = records.findIndex(
+                item => String(item.id) === String(id)
+            );
+
+            if (index < 0) {
+                throw new ApiError('Meal not found.', 404);
+            }
+
+            records[index] = Object.assign(
+                {},
+                records[index],
+                clone(meal)
+            );
+
+            db.set('meals', records);
+            return clone(records[index]);
+        }),
+
+    // DELETE meal
+    removeMeal: id => useBackend()
+        ? http('DELETE', '/api/nutrition/' + encodeURIComponent(id))
+        : Promise.resolve().then(() => {
+            const records = ensure('meals', []);
+            db.set(
+                'meals',
+                records.filter(item => String(item.id) !== String(id))
+            );
+            return { ok: true };
+        }),
+
+    // GET foods
+    foods: search => useBackend()
+        ? http('GET', '/foods').then(data => {
+            const foods = (Array.isArray(data) ? data : []).map(food => ({
+                id: food.id,
+                foodId: food.id,
+                name: food.name,
+                serving: food.serving,
+                calories: food.calories,
+                protein: food.protein,
+                carbs: food.carbs,
+                fat: food.fat
+            }));
+
+            if (!search) return foods;
+
+            const keyword = String(search).toLowerCase();
+
+            return foods.filter(food =>
+                String(food.name || '').toLowerCase().includes(keyword)
+            );
+        })
+        : Promise.resolve(getDemoData('foods', []).filter(food =>
+            !search ||
+            String(food.name || '').toLowerCase().includes(
+                String(search).toLowerCase()
+            )
+        )),
+
+    // ADD new food
+    addFood: data => useBackend()
+        ? http('POST', '/foods', { body: data })
+        : Promise.resolve().then(() => {
+            const records = ensure('foods', []);
+            const food = Object.assign(
+                { id: uid('food') },
+                clone(data)
+            );
+            records.push(food);
+            db.set('foods', records);
+            return clone(food);
+        }),
+
+    // GET nutrition goals
+    goals: () => useBackend()
+        ? http(
+            'GET',
+            '/api/diet/goal/user/' + encodeURIComponent(requireUserId())
+        )
+        : Promise.resolve(ensure('nutritionGoals', {
+            calories: 2000,
+            protein: 100,
+            carbs: 250,
+            fat: 65,
+            waterMl: 2500,
+            cupMl: 250
+        })),
+
+    // SAVE nutrition goals
+    saveGoals: goals => useBackend()
+        ? http('POST', '/api/diet/goal', { body: goals })
+        : Promise.resolve(db.set('nutritionGoals', clone(goals))),
+
+    // GET water intake
+    water: date => useBackend()
+        ? http('GET', '/water/' + encodeURIComponent(date || today()))
+        : Promise.resolve(ensure('water', [])),
+
+    // UPDATE water intake
+    setWater: (date, cups) => useBackend()
+        ? http(
+            'PUT',
+            '/water/' + encodeURIComponent(date),
+            { body: { cups } }
+        )
+        : Promise.resolve().then(() => {
+            const records = ensure('water', []);
+            const index = records.findIndex(
+                item => item.date === date
+            );
+
+            if (index >= 0) {
+                records[index].cups = cups;
+            } else {
+                records.push({ date, cups });
+            }
+
+            db.set('water', records);
+            return { date, cups };
+        })
+};
+
+    /* ======================== 4. QR CHECK-IN ======================== */
+
+    const checkin = {
+        qrToken: () => useBackend()
+            ? http('GET', '/api/v1/checkins/qr-token')
+            : Promise.resolve({
+                token: 'FORMA-DEMO|' + Date.now(),
+                expiresAt: new Date(Date.now() + 300000).toISOString()
+            }),
+
+        verify: data => useBackend()
+            ? http('POST', '/api/v1/checkins', { body: data })
+            : Promise.resolve({
+                id: uid('chk'),
+                status: 'demo-recorded',
+                method: data.method || 'qr'
+            }),
+
+        list: params => useBackend()
+            ? http('GET', '/api/v1/checkins', { query: params })
+            : Promise.resolve(ensure('checkins', []))
+    };
+
+    /* ======================== 5. EQUIPMENT ======================== */
+
+    const equipment = {
+        // EquipmentController: GET /api/v1/equipment
+        list: params => useBackend()
+            ? http('GET', '/api/v1/equipment', { query: params })
+            : Promise.resolve(ensure('equipment', [])),
+
+        // EquipmentController: PUT /api/v1/equipment/{id}/status
+        setStatus: (id, status, waitMinutes) => useBackend()
+            ? http(
+                'PUT',
+                '/api/v1/equipment/' + encodeURIComponent(id) + '/status',
+                {
+                    body: {
+                        status,
+                        waitMinutes: status === 'occupied'
+                            ? (waitMinutes || 5)
+                            : 0
+                    }
+                }
+            )
+            : Promise.resolve().then(() => {
+                const records = ensure('equipment', []);
+                const item = records.find(
+                    record => String(record.id) === String(id)
+                );
+                if (!item) throw new ApiError('Equipment not found.', 404);
+                item.status = status;
+                item.waitMinutes = status === 'occupied'
+                    ? (waitMinutes || 5)
+                    : 0;
+                db.set('equipment', records);
+                return clone(item);
+            }),
+
+        categories: () => getDemoData('equipmentCategories', [])
+    };
+
+    /* ======================== 6. PROGRESS TRACKER ======================== */
+
+    const progress = {
+        workouts: params => useBackend()
+            ? http('GET', '/api/v1/workouts', { query: params })
+            : Promise.resolve(ensure('workouts', [])),
+
+        addWorkout: data => useBackend()
+            ? http('POST', '/api/v1/workouts', { body: data })
+            : Promise.resolve().then(() => {
+                const records = ensure('workouts', []);
+                const record = Object.assign({ id: uid('wk') }, clone(data));
+                records.push(record);
+                db.set('workouts', records);
+                return clone(record);
+            }),
+
+        removeWorkout: id => useBackend()
+            ? http('DELETE', '/api/v1/workouts/' + encodeURIComponent(id))
+            : Promise.resolve().then(() => {
+                const records = ensure('workouts', []);
+                db.set(
+                    'workouts',
+                    records.filter(item => String(item.id) !== String(id))
+                );
+                return { ok: true };
+            }),
+
+        metrics: params => useBackend()
+            ? http('GET', '/api/v1/body-metrics', { query: params })
+            : Promise.resolve(ensure('bodyMetrics', [])),
+
+        addMetric: data => useBackend()
+            ? http('POST', '/api/v1/body-metrics', { body: data })
+            : Promise.resolve().then(() => {
+                const records = ensure('bodyMetrics', []);
+                const record = Object.assign({ id: uid('bm') }, clone(data));
+                records.push(record);
+                db.set('bodyMetrics', records);
+                return clone(record);
+            }),
+
+        removeMetric: id => useBackend()
+            ? http('DELETE', '/api/v1/body-metrics/' + encodeURIComponent(id))
+            : Promise.resolve().then(() => {
+                const records = ensure('bodyMetrics', []);
+                db.set(
+                    'bodyMetrics',
+                    records.filter(item => String(item.id) !== String(id))
+                );
+                return { ok: true };
+            }),
+
+        goal: () => useBackend()
+            ? http('GET', '/api/v1/goals')
+            : Promise.resolve(ensure('goal', {})),
+
+        saveGoal: goal => useBackend()
+            ? http('PUT', '/api/v1/goals', { body: goal })
+            : Promise.resolve(db.set('goal', clone(goal))),
+
+        prediction: ({ weeks = 12 } = {}) => useBackend()
+            ? http('GET', '/api/v1/progress/prediction', {
+                query: { weeks }
+            })
+            : Promise.resolve({
+                generatedBy: 'demo',
+                weeks: [],
+                confidence: 'low'
+            })
+    };
+
+/* ======================== 7. TRAINERS ======================== */
+
+function unwrapTrainerResponse(response) {
+    if (
+        response &&
+        typeof response === 'object' &&
+        Object.prototype.hasOwnProperty.call(response, 'data')
+    ) {
+        return response.data;
+    }
+
+    return response;
+}
+
+const trainers = {
+
+    // GET /api/trainers
+    list: () => useBackend()
+        ? http('GET', '/api/trainers')
+            .then(unwrapTrainerResponse)
+        : Promise.resolve(getDemoData('trainers', [])),
+
+    // GET /api/trainers/{id}
+    get: id => useBackend()
+        ? http(
+            'GET',
+            '/api/trainers/' + encodeURIComponent(id)
+        ).then(unwrapTrainerResponse)
+        : Promise.resolve(
+            getDemoData('trainers', []).find(
+                item => String(item.id) === String(id)
+            ) || null
+        ),
+
+    // GET /api/trainers/search?specialization=
+    search: specialization => {
+        if (!specialization || !specialization.trim()) {
+            return Promise.reject(
+                new ApiError('Please enter a specialization.', 422)
+            );
+        }
+
+        return useBackend()
+            ? http('GET', '/api/trainers/search', {
+                query: { specialization: specialization.trim() }
+            }).then(unwrapTrainerResponse)
+            : Promise.resolve(
+                getDemoData('trainers', []).filter(trainer =>
+                    String(trainer.specialization || '')
+                        .toLowerCase()
+                        .includes(specialization.toLowerCase())
+                )
+            );
+    },
+
+    // GET /api/trainers/match?goal=
+    match: goal => {
+        if (!goal || !goal.trim()) {
+            return Promise.reject(
+                new ApiError('Please select a fitness goal.', 422)
+            );
+        }
+
+        return useBackend()
+            ? http('GET', '/api/trainers/match', {
+                query: { goal: goal.trim() }
+            }).then(unwrapTrainerResponse)
+            : Promise.resolve(
+                getDemoData('trainers', []).filter(trainer =>
+                    String(trainer.supportedGoals || '')
+                        .toLowerCase()
+                        .includes(goal.toLowerCase())
+                )
+            );
+    },
+
+    // POST /api/trainers/book
+    book: data => {
+        if (!data || !data.trainerId || !data.scheduledAt) {
+            return Promise.reject(
+                new ApiError(
+                    'Trainer ID and booking date are required.',
+                    422
+                )
+            );
+        }
+
+        return useBackend()
+            ? http('POST', '/api/trainers/book', {
+                body: Object.assign({}, data, {
+                    memberId: data.memberId || requireUserId()
+                })
+            }).then(unwrapTrainerResponse)
+            : Promise.reject(
+                new ApiError('Demo booking is not configured.')
+            );
+    },
+
+    // GET /api/trainers/bookings/member/{memberId}
+    bookings: memberId => useBackend()
+        ? http(
+            'GET',
+            '/api/trainers/bookings/member/' +
+            encodeURIComponent(memberId || requireUserId())
+        ).then(unwrapTrainerResponse)
+        : Promise.resolve(ensure('trainerBookings', [])),
+
+    // GET /api/trainers/bookings/trainer/{trainerId}
+    trainerBookings: trainerId => useBackend()
+        ? http(
+            'GET',
+            '/api/trainers/bookings/trainer/' +
+            encodeURIComponent(trainerId)
+        ).then(unwrapTrainerResponse)
+        : Promise.resolve(ensure('trainerBookings', [])),
+
+    // PUT /api/trainers/bookings/{bookingId}/status
+    updateBooking: (bookingId, status) => useBackend()
+        ? http(
+            'PUT',
+            '/api/trainers/bookings/' +
+            encodeURIComponent(bookingId) +
+            '/status',
+            {
+                body: { status }
+            }
+        ).then(unwrapTrainerResponse)
+        : Promise.resolve({ ok: true }),
+
+    // DELETE /api/trainers/bookings/{bookingId}?memberId=
+    cancelBooking: (bookingId, memberId) => useBackend()
+        ? http(
+            'DELETE',
+            '/api/trainers/bookings/' +
+            encodeURIComponent(bookingId),
+            {
+                query: {
+                    memberId: memberId || requireUserId()
+                }
+            }
+        ).then(unwrapTrainerResponse)
+        : Promise.resolve({ ok: true })
+};
+
+    /* ======================== 8. CHATBOT ======================== */
+
+    const chatbot = {
+        // FitnessChatbotController: POST /api/chatbot/chat
+        send: (message, history) => useBackend()
+            ? http('POST', '/api/chatbot/chat', {
+                body: {
+                    message,
+                    history
+                }
+            })
+            : Promise.resolve({
+                reply: 'Welcome to FORMA! How can I help you?',
+                suggestions: []
+            }),
+
+        history: () => useBackend()
+            ? http(
+                'GET',
+                '/api/chatbot/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/history'
+            )
+            : Promise.resolve(db.get('chatHistory', [])),
+
+        getChat: chatId => useBackend()
+            ? http(
+                'GET',
+                '/api/chatbot/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/history/' + encodeURIComponent(chatId)
+            )
+            : Promise.resolve(null),
+
+        saveHistory: list => Promise.resolve(
+            db.set('chatHistory', clone(list))
+        ),
+
+        clearHistory: chatId => useBackend()
+            ? http(
+                'DELETE',
+                '/api/chatbot/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/history/' + encodeURIComponent(chatId)
+            )
+            : Promise.resolve(db.remove('chatHistory') || { ok: true })
+    };
+
+    /* 9. MEMBERSHIP */
+
+const unwrapMembershipResponse = response => {
+    return response && Object.prototype.hasOwnProperty.call(response, 'data')
+        ? response.data
+        : response;
+};
+
+const membership = {
+    plans: () => useBackend()
+        ? http('GET', '/api/membership-plans')
+            .then(unwrapMembershipResponse)
+            .then(data => Array.isArray(data) ? data : [])
+        : Promise.resolve(getDemoData('membershipPlans', [])),
+
+    current: () => useBackend()
+        ? http(
+            'GET',
+            '/api/memberships/user/' + encodeURIComponent(requireUserId())
+        )
+            .then(unwrapMembershipResponse)
+            .catch(error => {
+                if ((error.message || '').includes('No active membership found')) {
+                    return null;
+                }
+                throw error;
+            })
+        : Promise.resolve(ensure('membership', null)),
+
+    history: () => useBackend()
+        ? http(
+            'GET',
+            '/api/memberships/user/' +
+            encodeURIComponent(requireUserId()) +
+            '/history'
+        )
+            .then(unwrapMembershipResponse)
+            .then(data => Array.isArray(data) ? data : [])
+        : Promise.resolve(ensure('membershipHistory', [])),
+
+    subscribe: data => useBackend()
+        ? http('POST', '/api/memberships/subscribe', {
+            body: {
+                userId: requireUserId(),
+                planId: data.planId,
+                autoRenew: !!data.autoRenew
+            }
+        }).then(unwrapMembershipResponse)
+        : Promise.reject(
+            new ApiError('Membership is not available in demo mode.')
+        ),
+
+    savePreferences: (membershipId, enabled) => useBackend()
+        ? http(
+            'PUT',
+            '/api/memberships/' +
+            encodeURIComponent(membershipId) +
+            '/auto-renew',
+            { query: { enabled: enabled } }
+        ).then(unwrapMembershipResponse)
+        : Promise.resolve({ ok: true }),
+
+    cancel: () => Promise.reject(
+        new ApiError('Membership cancellation is not supported by the backend.')
+    )
+};
+    /* ======================== FOOD CRUD ======================== */
+
+    const food = {
+        list: params => useBackend()
+            ? http('GET', '/foods', { query: params })
+            : Promise.resolve(getDemoData('foods', [])),
+
+        get: id => useBackend()
+            ? http('GET', '/foods/' + encodeURIComponent(id))
+            : Promise.resolve(null),
+
+        create: data => useBackend()
+            ? http('POST', '/foods', { body: data })
+            : Promise.resolve(data),
+
+        update: (id, data) => useBackend()
+            ? http('PUT', '/foods/' + encodeURIComponent(id), { body: data })
+            : Promise.resolve(data),
+
+        remove: id => useBackend()
+            ? http('DELETE', '/foods/' + encodeURIComponent(id))
+            : Promise.resolve({ ok: true })
+    };
+
+    /* ======================== OTHER BACKEND MODULES ======================== */
+
+    const diet = {
+        dashboard: () => useBackend()
+            ? http(
+                'GET',
+                '/api/diet/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/dashboard'
+            )
+            : Promise.resolve({}),
+
+        today: () => useBackend()
+            ? http(
+                'GET',
+                '/api/diet/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/today'
+            )
+            : Promise.resolve([]),
+
+        history: () => useBackend()
+            ? http(
+                'GET',
+                '/api/diet/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/history'
+            )
+            : Promise.resolve([])
+    };
+
+    const sleep = {
+        log: data => useBackend()
+            ? http('POST', '/api/sleep/log', { body: data })
+            : Promise.resolve(data),
+
+        today: () => useBackend()
+            ? http(
+                'GET',
+                '/api/sleep/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/today'
+            )
+            : Promise.resolve([]),
+
+        history: () => useBackend()
+            ? http(
+                'GET',
+                '/api/sleep/user/' +
+                encodeURIComponent(requireUserId()) +
+                '/history'
+            )
+            : Promise.resolve([])
+    };
+
+    const challenges = {
+        list: () => useBackend()
+            ? http('GET', '/api/challenges')
+            : Promise.resolve([]),
+
+        active: () => useBackend()
+            ? http('GET', '/api/challenges/active')
+            : Promise.resolve([]),
+
+        join: data => useBackend()
+            ? http('POST', '/api/challenges/join', { body: data })
+            : Promise.resolve(data)
+    };
+
+    /* ======================== RESET DEMO ======================== */
+
+    function resetDemo() {
+        if (useBackend()) {
+            throw new ApiError(
+                'Reset demo is available only in Demo Mode.',
+                0,
+                'demo_only'
+            );
+        }
+
+        db.clearAll();
+        return { ok: true };
+    }
+
+    /* ======================== EXPORT ======================== */
+
+    return {
+        config: API_CONFIG,
+        http,
+
+        auth,
+        user,
+
+        workout,
+        posture,
+        nutrition,
+
+        checkin,
+        equipment,
+
+        progress,
+        trainers,
+
+        chatbot,
+        membership,
+
+        food,
+        diet,
+        sleep,
+        challenges,
+
+        resetDemo
+    };
+
 })();
+
+/* ======================== GLOBAL ACCESS ======================== */
+
+window.API = API;
+window.ApiError = ApiError;
+window.DemoEngines = DemoEngines;
+
+/* ======================== END OF API.JS ======================== */
