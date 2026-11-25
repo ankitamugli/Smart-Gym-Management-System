@@ -1041,53 +1041,63 @@ const trainers = {
 };
 
     /* ======================== 8. CHATBOT ======================== */
+const chatbot = {
+    send: (message, history) => useBackend()
+        ? http('POST', '/api/chatbot/chat', {
+            body: {
+                message: message
+            }
+        })
+        : Promise.resolve({
+            reply: 'Welcome to FORMA! How can I help you?',
+            suggestions: []
+        }),
 
-    const chatbot = {
-        // FitnessChatbotController: POST /api/chatbot/chat
-        send: (message, history) => useBackend()
-            ? http('POST', '/api/chatbot/chat', {
-                body: {
-                    message,
-                    history
-                }
-            })
-            : Promise.resolve({
-                reply: 'Welcome to FORMA! How can I help you?',
-                suggestions: []
-            }),
+    history: () => useBackend()
+        ? http(
+            'GET',
+            '/api/chatbot/user/' +
+            encodeURIComponent(requireUserId()) +
+            '/history'
+        )
+        : Promise.resolve(db.get('chatHistory', [])),
 
-        history: () => useBackend()
-            ? http(
-                'GET',
-                '/api/chatbot/user/' +
-                encodeURIComponent(requireUserId()) +
-                '/history'
-            )
-            : Promise.resolve(db.get('chatHistory', [])),
+    getChat: chatId => useBackend()
+        ? http(
+            'GET',
+            '/api/chatbot/user/' +
+            encodeURIComponent(requireUserId()) +
+            '/history/' +
+            encodeURIComponent(chatId)
+        )
+        : Promise.resolve(null),
 
-        getChat: chatId => useBackend()
-            ? http(
-                'GET',
-                '/api/chatbot/user/' +
-                encodeURIComponent(requireUserId()) +
-                '/history/' + encodeURIComponent(chatId)
-            )
-            : Promise.resolve(null),
+    saveHistory: list => Promise.resolve(
+        db.set('chatHistory', clone(list))
+    ),
 
-        saveHistory: list => Promise.resolve(
-            db.set('chatHistory', clone(list))
-        ),
+    clearHistory: chatId => {
+        if (!useBackend()) {
+            return Promise.resolve(
+                db.remove('chatHistory') || { ok: true }
+            );
+        }
 
-        clearHistory: chatId => useBackend()
-            ? http(
-                'DELETE',
-                '/api/chatbot/user/' +
-                encodeURIComponent(requireUserId()) +
-                '/history/' + encodeURIComponent(chatId)
-            )
-            : Promise.resolve(db.remove('chatHistory') || { ok: true })
-    };
+        if (!chatId) {
+            return Promise.reject(
+                new Error('Chat ID is required to delete a chat.')
+            );
+        }
 
+        return http(
+            'DELETE',
+            '/api/chatbot/user/' +
+            encodeURIComponent(requireUserId()) +
+            '/history/' +
+            encodeURIComponent(chatId)
+        );
+    }
+};
     /* 9. MEMBERSHIP */
 
 const unwrapMembershipResponse = response => {
